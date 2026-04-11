@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.auction import router as auction_router
 from api.auth import router as auth_router
 from api.campaigns import router as campaigns_router
 from api.publishers import router as publishers_router
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(campaigns_router)
 app.include_router(publishers_router)
+app.include_router(auction_router)
 
 
 @app.get("/health")

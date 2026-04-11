@@ -9,9 +9,10 @@ from alembic import context
 
 from config import settings
 from models.base import Base
-import models.advertiser  # noqa: F401 — ensure models are registered
-import models.publisher   # noqa: F401
-import models.campaign    # noqa: F401
+import models.advertiser   # noqa: F401 — ensure models are registered
+import models.publisher    # noqa: F401
+import models.campaign     # noqa: F401
+import models.impression   # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

@@ -10,12 +10,12 @@ from models.base import Base
 
 
 class CampaignStatus(str, PyEnum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    ACTIVE = "active"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class Campaign(Base):
