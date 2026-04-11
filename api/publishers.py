@@ -3,7 +3,6 @@ from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai.publisher_analyzer import analyze_instagram, analyze_publisher_site, _generate_serve_tag
 from api.auth import get_current_publisher
 from models.base import get_db
 from models.publisher import InventoryZone, Publisher
@@ -24,6 +23,12 @@ class InstagramAnalysisRequest(BaseModel):
     bio: str
 
 
+class JobAccepted(BaseModel):
+    job_id: str
+    status: str = "queued"
+    poll_url: str
+
+
 class ZoneResponse(BaseModel):
     id: str
     name: str
@@ -35,59 +40,28 @@ class ZoneResponse(BaseModel):
     serve_tag: str | None
 
 
-@router.post("/analyze-site", status_code=status.HTTP_200_OK)
+@router.post("/analyze-site", response_model=JobAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def analyze_site(
     req: AnalyzeSiteRequest,
     request: Request,
     publisher: Publisher = Depends(get_current_publisher),
-    db: AsyncSession = Depends(get_db),
 ):
-    try:
-        result = await analyze_publisher_site(str(req.site_url))
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Site analysis failed: {exc}",
-        )
+    """
+    Enqueue site analysis. Returns a job_id immediately.
+    Poll GET /jobs/{job_id} for status; result contains zone_ids when done.
+    """
+    from workers.tasks import analyze_site_task
 
     base_url = str(request.base_url).rstrip("/")
-
-    saved_zones = []
-    for zone in result.get("recommended_zones", []):
-        iz = InventoryZone(
-            publisher_id=publisher.id,
-            name=zone["name"],
-            zone_type=zone["zone_type"],
-            dimensions=zone.get("dimensions"),
-            recommended_cpm_usd=zone.get("recommended_cpm_usd"),
-            placement_rationale=zone.get("placement_rationale"),
-            categories=zone.get("categories", []),
-        )
-        db.add(iz)
-        saved_zones.append(iz)
-
-    await db.commit()
-    for z in saved_zones:
-        await db.refresh(z)
-        # Generate serve tag now that we have a stable zone UUID
-        z.serve_tag = _generate_serve_tag(z.id, z.zone_type, base_url)
-
-    await db.commit()
-
-    zones_out = [
-        {
-            "id": z.id,
-            "name": z.name,
-            "zone_type": z.zone_type,
-            "dimensions": z.dimensions,
-            "recommended_cpm_usd": z.recommended_cpm_usd,
-            "placement_rationale": z.placement_rationale,
-            "categories": z.categories,
-            "serve_tag": z.serve_tag,
-        }
-        for z in saved_zones
-    ]
-    return {**result, "recommended_zones": zones_out}
+    task = analyze_site_task.delay(
+        publisher_id=publisher.id,
+        site_url=str(req.site_url),
+        base_url=base_url,
+    )
+    return JobAccepted(
+        job_id=task.id,
+        poll_url=f"/jobs/{task.id}",
+    )
 
 
 @router.get("/zones", response_model=list[ZoneResponse])
@@ -124,6 +98,8 @@ async def instagram_monetize(
     req: InstagramAnalysisRequest,
     publisher: Publisher = Depends(get_current_publisher),
 ):
+    from ai.publisher_analyzer import analyze_instagram
+
     try:
         result = await analyze_instagram(
             handle=req.handle,
