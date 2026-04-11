@@ -43,6 +43,9 @@ class Campaign(Base):
     daily_budget_usd: Mapped[float | None] = mapped_column(Float)
     total_budget_usd: Mapped[float | None] = mapped_column(Float)
 
+    # Image generation status: None | "pending" | "done" | "failed"
+    images_status: Mapped[str | None] = mapped_column(String(20))
+
     # Marketplace
     status: Mapped[CampaignStatus] = mapped_column(
         SAEnum(CampaignStatus), default=CampaignStatus.PENDING
