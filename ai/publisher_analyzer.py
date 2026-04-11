@@ -137,26 +137,20 @@ async def analyze_publisher_site(site_url: str) -> dict:
     raw = _call_claude(prompt)
     analysis = _parse_json(raw)
 
-    # Attach serve tag snippet to each zone
-    for zone in analysis.get("recommended_zones", []):
-        zone["serve_tag"] = _generate_serve_tag(site_url, zone["name"])
-
     return {"site_url": site_url, "page_title": page["title"], **analysis}
 
 
-def _generate_serve_tag(site_url: str, zone_name: str) -> str:
+def _generate_serve_tag(zone_id: str, zone_type: str = "banner", base_url: str = "http://localhost:8000") -> str:
     """Generate the JS snippet a publisher pastes into their site."""
     return (
-        f'<!-- AI Ad Server | Zone: {zone_name} -->\n'
-        f'<div id="aias-{zone_name}"></div>\n'
-        f'<script>\n'
-        f'  (function(){{ var s=document.createElement("script");\n'
-        f'    s.src="https://cdn.aiadserver.io/serve.js";\n'
-        f'    s.dataset.zone="{zone_name}";\n'
-        f'    s.dataset.site="{site_url}";\n'
-        f'    s.async=true;\n'
-        f'    document.getElementById("aias-{zone_name}").appendChild(s);\n'
-        f'  }})();\n'
+        f'<!-- AI Ad Server | Zone: {zone_id} -->\n'
+        f'<div id="aias-{zone_id}"></div>\n'
+        f'<script\n'
+        f'  src="{base_url}/serve/serve.js"\n'
+        f'  data-zone="{zone_id}"\n'
+        f'  data-type="{zone_type}"\n'
+        f'  data-base="{base_url}"\n'
+        f'  async>\n'
         f'</script>'
     )
 

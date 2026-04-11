@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ad Serve Tag Test</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f8fafc; }
+    h1 { color: #0f172a; }
+    .section { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin: 24px 0; }
+    h2 { color: #475569; font-size: 14px; text-transform: uppercase; letter-spacing: .05em; margin-top: 0; }
+    pre { background: #f1f5f9; padding: 12px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>AI Ad Server — Serve Tag Test</h1>
+  <p>This page demonstrates the publisher serve tag. Open the browser console to see requests.</p>
+
+  <!-- REPLACE ZONE_ID below with a real zone UUID from your database -->
+  <script>
+    var ZONE_ID = new URLSearchParams(window.location.search).get('zone') || 'REPLACE_WITH_ZONE_ID';
+    var BASE    = window.location.origin;
+    document.write('<div style="margin:24px 0"><h2 style="font-family:sans-serif;font-size:14px;color:#475569;text-transform:uppercase;letter-spacing:.05em;">Banner Format</h2>');
+    document.write('<div id="aias-' + ZONE_ID + '"></div>');
+    document.write('<script src="' + BASE + '/serve/serve.js" data-zone="' + ZONE_ID + '" data-type="banner" data-base="' + BASE + '" async><\/script>');
+    document.write('</div>');
+
+    document.write('<div style="margin:24px 0"><h2 style="font-family:sans-serif;font-size:14px;color:#475569;text-transform:uppercase;letter-spacing:.05em;">Native Format</h2>');
+    document.write('<div id="aias-' + ZONE_ID + '-native"></div>');
+    // Note: two tags on same page need distinct container IDs — in practice each zone has its own unique ID
+    document.write('</div>');
+  </script>
+
+  <div class="section">
+    <h2>How to use</h2>
+    <p>Pass your zone ID as a query param: <code>?zone=YOUR_ZONE_UUID</code></p>
+    <p>Or drop the serve tag directly into any HTML page:</p>
+    <pre id="tag-example">Loading...</pre>
+    <script>
+      var zid = new URLSearchParams(window.location.search).get('zone') || 'YOUR_ZONE_UUID';
+      document.getElementById('tag-example').textContent = [
+        '<!-- AI Ad Server -->',
+        '<div id="aias-' + zid + '"></div>',
+        '<script',
+        '  src="' + window.location.origin + '/serve/serve.js"',
+        '  data-zone="' + zid + '"',
+        '  data-type="banner"',
+        '  data-base="' + window.location.origin + '"',
+        '  async>',
+        '<\/script>'
+      ].join('\n');
+    </script>
+  </div>
+</body>
+</html>

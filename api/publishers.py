@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai.publisher_analyzer import analyze_instagram, analyze_publisher_site
+from ai.publisher_analyzer import analyze_instagram, analyze_publisher_site, _generate_serve_tag
 from api.auth import get_current_publisher
 from models.base import get_db
 from models.publisher import InventoryZone, Publisher
@@ -38,6 +38,7 @@ class ZoneResponse(BaseModel):
 @router.post("/analyze-site", status_code=status.HTTP_200_OK)
 async def analyze_site(
     req: AnalyzeSiteRequest,
+    request: Request,
     publisher: Publisher = Depends(get_current_publisher),
     db: AsyncSession = Depends(get_db),
 ):
@@ -49,6 +50,8 @@ async def analyze_site(
             detail=f"Site analysis failed: {exc}",
         )
 
+    base_url = str(request.base_url).rstrip("/")
+
     saved_zones = []
     for zone in result.get("recommended_zones", []):
         iz = InventoryZone(
@@ -59,7 +62,6 @@ async def analyze_site(
             recommended_cpm_usd=zone.get("recommended_cpm_usd"),
             placement_rationale=zone.get("placement_rationale"),
             categories=zone.get("categories", []),
-            serve_tag=zone.get("serve_tag"),
         )
         db.add(iz)
         saved_zones.append(iz)
@@ -67,8 +69,25 @@ async def analyze_site(
     await db.commit()
     for z in saved_zones:
         await db.refresh(z)
+        # Generate serve tag now that we have a stable zone UUID
+        z.serve_tag = _generate_serve_tag(z.id, z.zone_type, base_url)
 
-    return {**result, "saved_zone_ids": [z.id for z in saved_zones]}
+    await db.commit()
+
+    zones_out = [
+        {
+            "id": z.id,
+            "name": z.name,
+            "zone_type": z.zone_type,
+            "dimensions": z.dimensions,
+            "recommended_cpm_usd": z.recommended_cpm_usd,
+            "placement_rationale": z.placement_rationale,
+            "categories": z.categories,
+            "serve_tag": z.serve_tag,
+        }
+        for z in saved_zones
+    ]
+    return {**result, "recommended_zones": zones_out}
 
 
 @router.get("/zones", response_model=list[ZoneResponse])

@@ -18,3 +18,4 @@ passlib==1.7.4
 python-dotenv==1.2.2
 tenacity==9.1.4
 email-validator
+aiofiles
