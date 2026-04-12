@@ -108,6 +108,7 @@ async def get_current_publisher(
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Create an advertiser or publisher account and return a JWT."""
     hashed = _hash(req.password)
 
     if req.role == "advertiser":
@@ -145,6 +146,7 @@ async def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
+    """Exchange email + password for a JWT. Works for both advertisers and publishers."""
     # Try advertiser first, then publisher
     result = await db.execute(select(Advertiser).where(Advertiser.email == form.username))
     user = result.scalar_one_or_none()

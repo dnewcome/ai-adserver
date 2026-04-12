@@ -82,6 +82,18 @@
     /* Serve tag */
     .code-block { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #86efac; white-space: pre-wrap; word-break: break-all; margin-top: 8px; }
 
+    /* Generate ad form */
+    .gen-form { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .gen-form label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #64748b; display: block; margin-bottom: 5px; }
+    .gen-form input, .gen-form select { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 7px 10px; font-size: 13px; }
+    .gen-form input { width: 340px; }
+    .gen-form input:focus, .gen-form select:focus { outline: none; border-color: #7c3aed; }
+    .gen-form select { min-width: 180px; }
+    .job-status { margin-left: 8px; font-size: 12px; color: #64748b; align-self: center; }
+    .job-status.running { color: #fbbf24; }
+    .job-status.done { color: #4ade80; }
+    .job-status.failed { color: #f87171; }
+
     /* Empty state */
     .empty { padding: 40px; text-align: center; color: #475569; font-size: 13px; }
 
@@ -106,6 +118,18 @@
 
   <!-- CAMPAIGNS TAB -->
   <div id="tab-campaigns" class="tab active">
+    <div class="gen-form">
+      <div>
+        <label for="gen-url">Product URL</label>
+        <input id="gen-url" type="url" placeholder="https://example.com/product">
+      </div>
+      <div>
+        <label for="gen-advertiser">Advertiser</label>
+        <select id="gen-advertiser"><option value="">— select —</option></select>
+      </div>
+      <button class="btn btn-purple" onclick="generateAd()">Generate Ad</button>
+      <span class="job-status" id="gen-status"></span>
+    </div>
     <div class="stat-row" id="campaign-stats"></div>
     <div class="card">
       <div class="card-header"><span class="card-title">Campaigns</span></div>
@@ -363,6 +387,13 @@ function showCreatives(id) {
 async function loadAdvertisers() {
   const data = await fetch(BASE + '/admin/api/advertisers').then(r => r.json());
 
+  // Populate the generate-ad advertiser dropdown
+  var sel = document.getElementById('gen-advertiser');
+  var current = sel.value;
+  sel.innerHTML = '<option value="">— select —</option>' +
+    data.map(a => '<option value="' + esc(a.id) + '">' + esc(a.email) + (a.company_name ? ' (' + esc(a.company_name) + ')' : '') + '</option>').join('');
+  if (current) sel.value = current;
+
   var rows = data.map(a => `
     <tr>
       <td style="color:#f1f5f9">${esc(a.email)}</td>
@@ -457,6 +488,63 @@ async function loadImpressions() {
   `).join('');
 
   document.getElementById('impressions-body').innerHTML = rows || '<tr><td colspan="6" class="empty">No impressions yet.</td></tr>';
+}
+
+// ── Generate Ad ──────────────────────────────────────────────────────────────
+var _genPollTimer = null;
+
+async function generateAd() {
+  var url = document.getElementById('gen-url').value.trim();
+  var advertiserId = document.getElementById('gen-advertiser').value;
+  var statusEl = document.getElementById('gen-status');
+
+  if (!url) { toast('Enter a product URL'); return; }
+  if (!advertiserId) { toast('Select an advertiser'); return; }
+
+  statusEl.className = 'job-status running';
+  statusEl.textContent = 'Queuing…';
+
+  try {
+    var res = await fetch(BASE + '/admin/api/campaigns/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_url: url, advertiser_id: advertiserId }),
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || res.statusText);
+    }
+    var job = await res.json();
+    statusEl.textContent = 'Processing…';
+    _pollJob(job.job_id, statusEl);
+  } catch(e) {
+    statusEl.className = 'job-status failed';
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+function _pollJob(jobId, statusEl) {
+  if (_genPollTimer) clearInterval(_genPollTimer);
+  _genPollTimer = setInterval(async () => {
+    try {
+      var job = await fetch(BASE + '/jobs/' + jobId).then(r => r.json());
+      if (job.status === 'done') {
+        clearInterval(_genPollTimer);
+        statusEl.className = 'job-status done';
+        statusEl.textContent = 'Done — refreshing…';
+        document.getElementById('gen-url').value = '';
+        setTimeout(() => { loadCampaigns(); statusEl.textContent = ''; }, 1000);
+      } else if (job.status === 'failed') {
+        clearInterval(_genPollTimer);
+        statusEl.className = 'job-status failed';
+        statusEl.textContent = 'Failed: ' + (job.error || 'unknown error');
+      } else {
+        statusEl.textContent = 'Processing (' + job.status + ')…';
+      }
+    } catch(e) {
+      // network hiccup — keep polling
+    }
+  }, 2000);
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────

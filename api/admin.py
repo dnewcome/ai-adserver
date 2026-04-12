@@ -22,6 +22,7 @@ router = APIRouter(prefix="/admin/api", tags=["admin"])
 
 @router.get("/advertisers")
 async def list_advertisers(db: AsyncSession = Depends(get_db)):
+    """List all advertisers with their current balance."""
     result = await db.execute(select(Advertiser).order_by(Advertiser.created_at.desc()))
     advertisers = result.scalars().all()
     return [
@@ -46,6 +47,7 @@ async def set_balance(
     req: SetBalanceRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    """Directly set an advertiser's account balance (admin override)."""
     result = await db.execute(select(Advertiser).where(Advertiser.id == advertiser_id))
     advertiser = result.scalar_one_or_none()
     if not advertiser:
@@ -61,6 +63,7 @@ async def set_balance(
 
 @router.get("/campaigns")
 async def list_campaigns(db: AsyncSession = Depends(get_db)):
+    """List all campaigns across all advertisers with impression/click/spend aggregates."""
     # Campaigns joined with impression aggregates
     imp_q = (
         select(
@@ -114,6 +117,34 @@ async def list_campaigns(db: AsyncSession = Depends(get_db)):
     return campaigns
 
 
+class CreateCampaignAdminRequest(BaseModel):
+    product_url: str
+    advertiser_id: str
+    daily_budget_usd: float | None = None
+    total_budget_usd: float | None = None
+
+
+@router.post("/campaigns/create")
+async def admin_create_campaign(
+    req: CreateCampaignAdminRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Enqueue AI campaign generation from a product URL on behalf of any advertiser."""
+    from workers.tasks import create_campaign_task
+
+    result = await db.execute(select(Advertiser).where(Advertiser.id == req.advertiser_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Advertiser not found")
+
+    task = create_campaign_task.delay(
+        advertiser_id=req.advertiser_id,
+        product_url=req.product_url,
+        daily_budget_usd=req.daily_budget_usd,
+        total_budget_usd=req.total_budget_usd,
+    )
+    return {"job_id": task.id, "status": "queued", "poll_url": f"/jobs/{task.id}"}
+
+
 class SetCampaignStatusRequest(BaseModel):
     status: str  # ACTIVE | PAUSED
 
@@ -124,6 +155,7 @@ async def set_campaign_status(
     req: SetCampaignStatusRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    """Set a campaign's status to ACTIVE or PAUSED."""
     from models.campaign import CampaignStatus
 
     result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
@@ -144,6 +176,7 @@ async def set_campaign_status(
 
 @router.get("/publishers")
 async def list_publishers(db: AsyncSession = Depends(get_db)):
+    """List all publishers."""
     result = await db.execute(select(Publisher).order_by(Publisher.created_at.desc()))
     publishers = result.scalars().all()
     return [
@@ -159,6 +192,7 @@ async def list_publishers(db: AsyncSession = Depends(get_db)):
 
 @router.get("/zones")
 async def list_zones(db: AsyncSession = Depends(get_db)):
+    """List all inventory zones across all publishers with impression/revenue aggregates."""
     # Zone impression stats subquery
     imp_q = (
         select(
@@ -203,6 +237,7 @@ async def list_zones(db: AsyncSession = Depends(get_db)):
 
 @router.get("/impressions")
 async def list_impressions(limit: int = 50, db: AsyncSession = Depends(get_db)):
+    """Return the most recent impressions with brand and zone info (default last 50)."""
     q = (
         select(Impression, Campaign.brand_name, InventoryZone.name.label("zone_name"))
         .join(Campaign, Impression.campaign_id == Campaign.id)

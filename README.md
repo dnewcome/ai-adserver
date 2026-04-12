@@ -30,37 +30,255 @@ serve.js tag → GET /serve/{zone_id}
 
 ---
 
-## Environment setup
+## Deployment
+
+### Prerequisites
+
+| Service | Version | Notes |
+|---------|---------|-------|
+| Python | 3.12+ | |
+| PostgreSQL | 16+ | |
+| Redis | 7+ | Celery broker and result backend |
+| ANTHROPIC_API_KEY | — | Claude for analysis and copy |
+| OPENAI_API_KEY | — | DALL-E 3 for image generation |
+
+---
+
+### Local development
+
+**1. Start infrastructure**
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+docker compose up -d   # starts postgres:5433 and redis:6379
+```
+
+Or `make up` which also waits for postgres to be ready.
+
+**2. Python environment**
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`.env` file (copy `.env.example`):
+**3. Configure `.env`**
 
 ```env
 DATABASE_URL=postgresql+asyncpg://adserver@/adserver?host=/var/run/postgresql&port=5433
 REDIS_URL=redis://localhost:6379/0
 ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...          # for DALL-E 3 image generation
-SECRET_KEY=change-me
+OPENAI_API_KEY=sk-proj-...
+SECRET_KEY=change-me-in-production
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
 ```
 
-Run migrations:
+**4. Run database migrations**
 
 ```bash
-alembic upgrade head
+make migrate
+# or: .venv/bin/alembic upgrade head
 ```
 
-Start services:
+**5. Start the API server** (terminal 1)
 
 ```bash
-# API server
-uvicorn main:app --reload --port 8000
+make dev
+# or: .venv/bin/uvicorn main:app --reload --port 8000
+```
 
-# Celery worker (separate terminal)
-celery -A workers.celery_app worker --loglevel=info --concurrency=2 -P solo
+**6. Start the Celery worker** (terminal 2)
+
+```bash
+make worker
+# or: .venv/bin/celery -A workers.celery_app worker --loglevel=info --concurrency=2 -P solo
+```
+
+The `--concurrency=2 -P solo` flags are important: `-P solo` runs tasks in the main thread so `asyncio.run()` works correctly inside each task. `--concurrency=2` allows two tasks to run concurrently in separate processes.
+
+Open `http://localhost:8000/admin` to access the admin UI.
+
+---
+
+### Production (Ubuntu/Debian with systemd)
+
+This setup runs the API server and Celery worker as systemd services behind nginx.
+
+**1. System dependencies**
+
+```bash
+sudo apt update
+sudo apt install -y python3.12 python3.12-venv python3-pip nginx postgresql redis-server
+```
+
+**2. Application user and directory**
+
+```bash
+sudo useradd -m -s /bin/bash adserver
+sudo mkdir -p /opt/adserver
+sudo chown adserver:adserver /opt/adserver
+```
+
+**3. Deploy the code**
+
+```bash
+sudo -u adserver git clone <repo-url> /opt/adserver
+cd /opt/adserver
+sudo -u adserver python3.12 -m venv .venv
+sudo -u adserver .venv/bin/pip install -r requirements.txt
+```
+
+**4. Environment file**
+
+```bash
+sudo -u adserver tee /opt/adserver/.env > /dev/null << 'EOF'
+DATABASE_URL=postgresql+asyncpg://adserver:yourpassword@localhost:5432/adserver
+REDIS_URL=redis://localhost:6379/0
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-proj-...
+SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex(32))">
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+EOF
+sudo chmod 600 /opt/adserver/.env
+```
+
+**5. Database setup**
+
+```bash
+sudo -u postgres psql -c "CREATE USER adserver WITH PASSWORD 'yourpassword';"
+sudo -u postgres psql -c "CREATE DATABASE adserver OWNER adserver;"
+cd /opt/adserver && sudo -u adserver .venv/bin/alembic upgrade head
+```
+
+**6. Static images directory**
+
+Generated ad images are saved under `static/images/` inside the project and served by FastAPI. Make sure the directory exists and is writable by the service user:
+
+```bash
+sudo -u adserver mkdir -p /opt/adserver/static/images
+```
+
+If you want images to survive redeployments, consider symlinking this to a persistent volume outside the repo.
+
+**7. Systemd service — API server**
+
+```bash
+sudo tee /etc/systemd/system/adserver.service > /dev/null << 'EOF'
+[Unit]
+Description=AI Ad Server (FastAPI)
+After=network.target postgresql.service redis.service
+
+[Service]
+User=adserver
+WorkingDirectory=/opt/adserver
+EnvironmentFile=/opt/adserver/.env
+ExecStart=/opt/adserver/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+**8. Systemd service — Celery worker**
+
+```bash
+sudo tee /etc/systemd/system/adserver-worker.service > /dev/null << 'EOF'
+[Unit]
+Description=AI Ad Server Celery Worker
+After=network.target postgresql.service redis.service
+
+[Service]
+User=adserver
+WorkingDirectory=/opt/adserver
+EnvironmentFile=/opt/adserver/.env
+ExecStart=/opt/adserver/.venv/bin/celery -A workers.celery_app worker \
+    --loglevel=info --concurrency=2 -P solo \
+    --logfile=/var/log/adserver/celery.log
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo mkdir -p /var/log/adserver
+sudo chown adserver:adserver /var/log/adserver
+```
+
+**9. Enable and start services**
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable adserver adserver-worker
+sudo systemctl start adserver adserver-worker
+sudo systemctl status adserver adserver-worker
+```
+
+**10. nginx reverse proxy**
+
+```bash
+sudo tee /etc/nginx/sites-available/adserver > /dev/null << 'EOF'
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Forward all traffic to uvicorn
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;  # campaign creation can take ~30s
+    }
+}
+EOF
+
+sudo ln -s /etc/nginx/sites-available/adserver /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Add TLS with certbot:
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+```
+
+---
+
+### Checking service health
+
+```bash
+# API
+curl http://localhost:8000/health
+
+# Worker — check it's connected to Redis and processing tasks
+sudo journalctl -u adserver-worker -f
+
+# Celery log file
+tail -f /var/log/adserver/celery.log
+
+# API log
+sudo journalctl -u adserver -f
+```
+
+---
+
+### Updating
+
+```bash
+cd /opt/adserver
+sudo -u adserver git pull
+sudo -u adserver .venv/bin/pip install -r requirements.txt
+sudo -u adserver .venv/bin/alembic upgrade head
+sudo systemctl restart adserver adserver-worker
 ```
 
 ---
@@ -342,9 +560,11 @@ Interactive docs available at `http://localhost:8000/docs` (Swagger UI).
 | GET | `/auction/click/{impression_id}` | — | Record click and redirect |
 | GET | `/admin` | — | Admin UI (dev only) |
 | GET | `/admin/api/campaigns` | — | All campaigns with stats |
+| POST | `/admin/api/campaigns/create` | — | Generate campaign from URL (admin shortcut) |
 | POST | `/admin/api/campaigns/{id}/status` | — | Pause or activate a campaign |
 | GET | `/admin/api/advertisers` | — | All advertiser accounts |
 | POST | `/admin/api/advertisers/{id}/balance` | — | Set advertiser balance |
+| GET | `/admin/api/publishers` | — | All publisher accounts |
 | GET | `/admin/api/zones` | — | All inventory zones with stats |
 | GET | `/admin/api/impressions` | — | Recent impressions |
 
