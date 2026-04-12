@@ -1,20 +1,40 @@
 (function () {
   'use strict';
 
-  // Locate our own script tag to read data attributes
-  var scripts = document.querySelectorAll('script[data-zone]');
-  var me = scripts[scripts.length - 1];
-  if (!me) return;
+  var BASE_URL = '';
 
-  var zoneId   = me.dataset.zone;
-  var zoneType = me.dataset.type || 'banner';   // banner | native
-  var baseUrl  = me.dataset.base || 'http://localhost:8000';
-  var containerId = 'aias-' + zoneId;
-  var container = document.getElementById(containerId);
-  if (!container) return;
+  // ─── Queue processor ────────────────────────────────────────────────────────
+  // Publishers call window._aias.push({zone, type, base}) per slot.
+  // This script processes whatever is already in the queue, then installs
+  // a live push() so late-arriving calls are handled immediately.
 
-  var pageUrl = encodeURIComponent(window.location.href);
-  var endpoint = baseUrl + '/serve/' + zoneId + '?url=' + pageUrl;
+  function processSlot(cfg) {
+    var zoneId   = cfg.zone;
+    var zoneType = cfg.type || 'banner';
+    var baseUrl  = cfg.base || BASE_URL || window.location.origin;
+    var containerId = cfg.containerId || ('aias-' + zoneId);
+    var container   = document.getElementById(containerId);
+    if (!container) return;
+
+    var pageUrl  = encodeURIComponent(window.location.href);
+    var endpoint = baseUrl + '/serve/' + zoneId + '?url=' + pageUrl;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', endpoint, true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status === 204 || !xhr.responseText) return;
+      if (xhr.status !== 200) return;
+      var data;
+      try { data = JSON.parse(xhr.responseText); } catch (e) { return; }
+      if (zoneType === 'native') {
+        renderNative(data, container);
+      } else {
+        renderBanner(data, container);
+      }
+    };
+    xhr.send();
+  }
 
   // ─── Renderers ────────────────────────────────────────────────────────────
 
@@ -46,7 +66,7 @@
   function renderNative(data, el) {
     var c = data.creative;
     var imgHtml = c.image_url
-      ? '<img src="' + _esc(c.image_url) + '" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:4px;flex-shrink:0;">'
+      ? '<img src="' + _esc(c.image_url) + '" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:4px;flex-shrink:0;">'
       : '';
     el.innerHTML = [
       '<a href="' + data.click_url + '" target="_blank" rel="noopener"',
@@ -67,31 +87,21 @@
     ].join('');
   }
 
-  // ─── Fetch & render ────────────────────────────────────────────────────────
-
   function _esc(str) {
     return String(str || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', endpoint, true);
-  xhr.onreadystatechange = function () {
-    if (xhr.readyState !== 4) return;
-    if (xhr.status === 204 || !xhr.responseText) return; // no fill — stay blank
-    if (xhr.status !== 200) return;
+  // ─── Bootstrap ───────────────────────────────────────────────────────────
+  // Process any slots pushed before this script loaded, then take over push().
 
-    var data;
-    try { data = JSON.parse(xhr.responseText); } catch (e) { return; }
+  var existing = window._aias && window._aias.q ? window._aias.q : [];
+  existing.forEach(processSlot);
 
-    if (zoneType === 'native') {
-      renderNative(data, container);
-    } else {
-      renderBanner(data, container);
-    }
+  window._aias = {
+    push: processSlot,
+    q: []
   };
-  xhr.send();
+
 })();

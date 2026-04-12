@@ -9,13 +9,27 @@ async def scrape_url(url: str, timeout: int = 15) -> dict:
     """Fetch a URL and return structured text content."""
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (compatible; AIAdServer/1.0; +https://aiadserver.io/bot)"
-        )
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
     }
-    async with aiohttp.ClientSession(headers=headers) as session:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
+    connector = aiohttp.TCPConnector()
+    async with aiohttp.ClientSession(
+        headers=headers,
+        connector=connector,
+        max_line_size=16384,   # handle large CSP / cookie headers
+        max_field_size=16384,
+    ) as session:
+        async with session.get(
+            url,
+            timeout=aiohttp.ClientTimeout(total=timeout),
+            allow_redirects=True,
+        ) as resp:
             resp.raise_for_status()
-            html = await resp.text()
+            html = await resp.text(errors="replace")
 
     soup = BeautifulSoup(html, "html.parser")
 

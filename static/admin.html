@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ad Server Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; font-size: 14px; }
+
+    header { background: #1e293b; border-bottom: 1px solid #334155; padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 10; }
+    .logo { font-weight: 700; font-size: 15px; color: #a78bfa; letter-spacing: -.02em; white-space: nowrap; }
+    nav { display: flex; gap: 4px; }
+    nav button { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: background .15s, color .15s; }
+    nav button:hover { background: #334155; color: #e2e8f0; }
+    nav button.active { background: #334155; color: #a78bfa; }
+    .refresh-btn { margin-left: auto; background: #334155; border: none; color: #94a3b8; cursor: pointer; padding: 6px 12px; border-radius: 6px; font-size: 12px; }
+    .refresh-btn:hover { color: #e2e8f0; }
+
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    /* Stats bar */
+    .stat-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 20px; min-width: 140px; }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #64748b; margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+    .stat-value.green { color: #4ade80; }
+    .stat-value.purple { color: #a78bfa; }
+
+    /* Tables */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+    .card-header { padding: 14px 20px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-weight: 600; font-size: 13px; color: #f1f5f9; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #64748b; padding: 10px 16px; border-bottom: 1px solid #334155; white-space: nowrap; }
+    td { padding: 10px 16px; border-bottom: 1px solid #1e293b; vertical-align: middle; color: #cbd5e1; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #263045; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .05em; }
+    .badge-green { background: #14532d; color: #4ade80; }
+    .badge-yellow { background: #422006; color: #fbbf24; }
+    .badge-red { background: #450a0a; color: #f87171; }
+    .badge-blue { background: #172554; color: #60a5fa; }
+    .badge-gray { background: #1e293b; color: #64748b; border: 1px solid #334155; }
+
+    /* Buttons */
+    .btn { border: none; cursor: pointer; border-radius: 6px; font-size: 12px; font-weight: 600; padding: 5px 12px; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-purple { background: #7c3aed; color: #fff; }
+    .btn-red { background: #7f1d1d; color: #fca5a5; }
+    .btn-ghost { background: #334155; color: #94a3b8; }
+    .btn-sm { padding: 3px 8px; font-size: 11px; }
+
+    /* Balance editor */
+    .balance-row { display: flex; align-items: center; gap: 8px; }
+    .balance-input { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; padding: 4px 8px; width: 90px; font-size: 13px; }
+    .balance-input:focus { outline: none; border-color: #7c3aed; }
+
+    /* Creative drawer */
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; display: none; }
+    .drawer-overlay.open { display: block; }
+    .drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 520px; background: #1e293b; border-left: 1px solid #334155; z-index: 101; overflow-y: auto; padding: 24px; display: none; }
+    .drawer.open { display: block; }
+    .drawer-close { float: right; background: #334155; border: none; color: #94a3b8; cursor: pointer; border-radius: 6px; padding: 4px 10px; font-size: 13px; margin-bottom: 16px; }
+    .drawer h2 { font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+    .drawer .sub { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+    .creative-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .creative-card img { width: 100%; border-radius: 6px; margin-bottom: 12px; object-fit: cover; max-height: 200px; }
+    .creative-card .no-img { background: #1e293b; border-radius: 6px; height: 100px; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 12px; margin-bottom: 12px; }
+    .creative-card .variant { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #a78bfa; margin-bottom: 8px; }
+    .creative-card .headline { font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+    .creative-card .body { font-size: 12px; color: #94a3b8; margin-bottom: 8px; }
+    .creative-card .cta { display: inline-block; background: #3b82f6; color: #fff; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 4px; margin-bottom: 12px; }
+    .creative-card .concept { font-size: 11px; color: #475569; font-style: italic; border-top: 1px solid #1e293b; padding-top: 10px; margin-top: 4px; }
+    .detail-row { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+    .detail-row strong { color: #94a3b8; }
+
+    /* Serve tag */
+    .code-block { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #86efac; white-space: pre-wrap; word-break: break-all; margin-top: 8px; }
+
+    /* Empty state */
+    .empty { padding: 40px; text-align: center; color: #475569; font-size: 13px; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #166534; color: #bbf7d0; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 200; display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⬡ Ad Server Admin</div>
+  <nav>
+    <button class="active" onclick="showTab('campaigns')">Campaigns</button>
+    <button onclick="showTab('advertisers')">Advertisers</button>
+    <button onclick="showTab('zones')">Zones</button>
+    <button onclick="showTab('impressions')">Impressions</button>
+  </nav>
+  <button class="refresh-btn" onclick="loadAll()">↺ Refresh</button>
+</header>
+
+<main>
+
+  <!-- CAMPAIGNS TAB -->
+  <div id="tab-campaigns" class="tab active">
+    <div class="stat-row" id="campaign-stats"></div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Campaigns</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Advertiser</th>
+            <th>Status</th>
+            <th>CPM Floor</th>
+            <th>Budget</th>
+            <th>Impr.</th>
+            <th>Clicks</th>
+            <th>CTR</th>
+            <th>Spend</th>
+            <th>Images</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="campaigns-body">
+          <tr><td colspan="11" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADVERTISERS TAB -->
+  <div id="tab-advertisers" class="tab">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Advertisers</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Company</th>
+            <th>Balance</th>
+            <th>Set Balance</th>
+            <th>Since</th>
+          </tr>
+        </thead>
+        <tbody id="advertisers-body">
+          <tr><td colspan="5" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ZONES TAB -->
+  <div id="tab-zones" class="tab">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Inventory Zones</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Zone Name</th>
+            <th>Publisher</th>
+            <th>Type</th>
+            <th>Rec. CPM</th>
+            <th>Categories</th>
+            <th>Impressions</th>
+            <th>Revenue</th>
+            <th>Serve Tag</th>
+          </tr>
+        </thead>
+        <tbody id="zones-body">
+          <tr><td colspan="8" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- IMPRESSIONS TAB -->
+  <div id="tab-impressions" class="tab">
+    <div class="stat-row" id="impression-stats"></div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Recent Impressions (last 50)</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Brand</th>
+            <th>Zone</th>
+            <th>CPM Paid</th>
+            <th>Clicked</th>
+            <th>Page</th>
+          </tr>
+        </thead>
+        <tbody id="impressions-body">
+          <tr><td colspan="6" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- Creative Drawer -->
+<div class="drawer-overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <button class="drawer-close" onclick="closeDrawer()">✕ Close</button>
+  <div id="drawer-content"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const BASE = '';
+
+// ── Tab navigation ──────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 2500);
+}
+
+// ── Drawer ───────────────────────────────────────────────────────────────────
+function openDrawer(html) {
+  document.getElementById('drawer-content').innerHTML = html;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString();
+}
+function statusBadge(s) {
+  var cls = { ACTIVE:'green', PAUSED:'yellow', FAILED:'red', PENDING:'gray', PROCESSING:'blue', COMPLETED:'gray' }[s] || 'gray';
+  return '<span class="badge badge-' + cls + '">' + esc(s) + '</span>';
+}
+function imgBadge(s) {
+  if (!s) return '<span class="badge badge-gray">—</span>';
+  var cls = { done:'green', pending:'yellow', failed:'red' }[s] || 'gray';
+  return '<span class="badge badge-' + cls + '">' + esc(s) + '</span>';
+}
+
+// ── Data stores (avoid passing JSON through HTML attributes) ─────────────────
+var _campaigns = {};
+var _zones = {};
+
+// ── Campaigns ────────────────────────────────────────────────────────────────
+async function loadCampaigns() {
+  const data = await fetch(BASE + '/admin/api/campaigns').then(r => r.json());
+  data.forEach(c => { _campaigns[c.id] = c; });
+
+  // Stats
+  var totalImpr = data.reduce((a, c) => a + c.impressions, 0);
+  var totalClicks = data.reduce((a, c) => a + c.clicks, 0);
+  var totalSpend = data.reduce((a, c) => a + c.spend_usd, 0);
+  var ctr = totalImpr ? (100 * totalClicks / totalImpr).toFixed(2) : '0.00';
+  document.getElementById('campaign-stats').innerHTML = [
+    stat('Campaigns', data.length, ''),
+    stat('Total Impressions', totalImpr.toLocaleString(), ''),
+    stat('Total Clicks', totalClicks.toLocaleString(), 'purple'),
+    stat('Overall CTR', ctr + '%', 'green'),
+    stat('Total Spend', '$' + totalSpend.toFixed(2), 'green'),
+  ].join('');
+
+  var rows = data.map(c => `
+    <tr>
+      <td><strong style="color:#f1f5f9">${esc(c.brand_name || '—')}</strong><br>
+          <a href="${esc(c.product_url)}" target="_blank" style="font-size:11px;color:#475569;word-break:break-all">${esc(c.product_url)}</a></td>
+      <td style="color:#64748b">${esc(c.advertiser_email)}</td>
+      <td>${statusBadge(c.status)}
+          <div style="margin-top:6px;display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" onclick="setCampaignStatus('${esc(c.id)}','ACTIVE')">▶</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCampaignStatus('${esc(c.id)}','PAUSED')">⏸</button>
+          </div></td>
+      <td>$${c.bid_floor_cpm != null ? c.bid_floor_cpm.toFixed(2) : '—'}</td>
+      <td style="font-size:12px">
+        ${c.daily_budget_usd != null ? '$' + c.daily_budget_usd + '/day' : ''}
+        ${c.total_budget_usd != null ? '<br>$' + c.total_budget_usd + ' total' : ''}
+        ${c.daily_budget_usd == null && c.total_budget_usd == null ? '—' : ''}
+      </td>
+      <td>${c.impressions.toLocaleString()}</td>
+      <td>${c.clicks.toLocaleString()}</td>
+      <td>${c.ctr_pct}%</td>
+      <td>$${c.spend_usd.toFixed(4)}</td>
+      <td>${imgBadge(c.images_status)}</td>
+      <td><button class="btn btn-purple btn-sm" onclick="showCreatives('${c.id}')">Creatives</button></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('campaigns-body').innerHTML = rows || '<tr><td colspan="11" class="empty">No campaigns yet.</td></tr>';
+}
+
+function stat(label, value, color) {
+  return '<div class="stat"><div class="stat-label">' + label + '</div><div class="stat-value ' + color + '">' + value + '</div></div>';
+}
+
+async function setCampaignStatus(id, status) {
+  await fetch(BASE + '/admin/api/campaigns/' + id + '/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  toast('Campaign ' + status.toLowerCase());
+  loadCampaigns();
+}
+
+function showCreatives(id) {
+  var c = _campaigns[id];
+  var creatives = c.ad_creatives || [];
+
+  var header = `
+    <h2>${esc(c.brand_name || 'Campaign')}</h2>
+    <div class="sub">${esc(c.product_url)}</div>
+    <div class="detail-row"><strong>Tone:</strong> ${esc(c.tone_of_voice || '—')}</div>
+    <div class="detail-row"><strong>CPM floor:</strong> $${c.bid_floor_cpm != null ? c.bid_floor_cpm.toFixed(2) : '—'}</div>
+    <div class="detail-row"><strong>Categories:</strong> ${esc((c.suggested_categories || []).join(', ') || '—')}</div>
+    <div class="detail-row"><strong>Target audience:</strong> ${esc(JSON.stringify(c.target_audience || {}))}</div>
+    <div class="detail-row" style="margin-bottom:16px"><strong>Value props:</strong><ul style="margin-top:4px;padding-left:18px;color:#94a3b8;font-size:12px">
+      ${(c.value_propositions || []).map(v => '<li>' + esc(v) + '</li>').join('')}
+    </ul></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:12px">Ad Creatives</div>
+  `;
+
+  var cards = creatives.map(cr => {
+    var img = cr.image_url
+      ? '<img src="' + esc(cr.image_url) + '" alt="">'
+      : '<div class="no-img">No image yet</div>';
+    return `
+      <div class="creative-card">
+        ${img}
+        <div class="variant">Variant ${esc(cr.variant_id)}</div>
+        <div class="headline">${esc(cr.headline_short)}</div>
+        <div class="body">${esc(cr.body_copy)}</div>
+        <span class="cta">${esc(cr.cta)}</span>
+        <div class="concept">Visual concept: ${esc(cr.visual_concept || '—')}</div>
+      </div>
+    `;
+  }).join('');
+
+  openDrawer(header + (cards || '<div class="empty">No creatives generated yet.</div>'));
+}
+
+// ── Advertisers ──────────────────────────────────────────────────────────────
+async function loadAdvertisers() {
+  const data = await fetch(BASE + '/admin/api/advertisers').then(r => r.json());
+
+  var rows = data.map(a => `
+    <tr>
+      <td style="color:#f1f5f9">${esc(a.email)}</td>
+      <td style="color:#94a3b8">${esc(a.company_name || '—')}</td>
+      <td><strong style="color:${a.balance_usd > 0 ? '#4ade80' : '#f87171'}">$${a.balance_usd.toFixed(2)}</strong></td>
+      <td>
+        <div class="balance-row">
+          <input class="balance-input" id="bal-${esc(a.id)}" type="number" step="0.01" min="0" value="${a.balance_usd.toFixed(2)}" placeholder="0.00">
+          <button class="btn btn-purple btn-sm" onclick="setBalance('${esc(a.id)}')">Set</button>
+        </div>
+      </td>
+      <td style="color:#475569;font-size:12px">${fmtDate(a.created_at)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('advertisers-body').innerHTML = rows || '<tr><td colspan="5" class="empty">No advertisers yet.</td></tr>';
+}
+
+async function setBalance(id) {
+  var val = parseFloat(document.getElementById('bal-' + id).value);
+  if (isNaN(val) || val < 0) { toast('Invalid amount'); return; }
+  await fetch(BASE + '/admin/api/advertisers/' + id + '/balance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ balance_usd: val }),
+  });
+  toast('Balance updated to $' + val.toFixed(2));
+  loadAdvertisers();
+}
+
+// ── Zones ────────────────────────────────────────────────────────────────────
+async function loadZones() {
+  const data = await fetch(BASE + '/admin/api/zones').then(r => r.json());
+  data.forEach(z => { _zones[z.id] = z; });
+
+  var rows = data.map(z => `
+    <tr>
+      <td style="color:#f1f5f9">${esc(z.name)}</td>
+      <td style="color:#64748b;font-size:12px">${esc(z.publisher_email)}<br>${esc(z.publisher_site || '')}</td>
+      <td><span class="badge badge-blue">${esc(z.zone_type)}</span></td>
+      <td>${z.recommended_cpm_usd != null ? '$' + z.recommended_cpm_usd.toFixed(2) : '—'}</td>
+      <td style="font-size:11px;color:#64748b">${(z.categories || []).join(', ') || '—'}</td>
+      <td>${z.impressions.toLocaleString()}</td>
+      <td>$${z.revenue_usd.toFixed(4)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="showServeTag('${z.id}')">View Tag</button></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('zones-body').innerHTML = rows || '<tr><td colspan="8" class="empty">No zones yet.</td></tr>';
+}
+
+function showServeTag(id) {
+  var z = _zones[id];
+  var tag = z.serve_tag || '(no tag generated)';
+  openDrawer(`
+    <h2>${esc(z.name)}</h2>
+    <div class="sub">${esc(z.publisher_site || z.publisher_email)}</div>
+    <div class="detail-row"><strong>Type:</strong> ${esc(z.zone_type)}</div>
+    <div class="detail-row"><strong>Zone ID:</strong> <code style="color:#86efac">${esc(z.id)}</code></div>
+    <div class="detail-row"><strong>Recommended CPM:</strong> $${z.recommended_cpm_usd != null ? z.recommended_cpm_usd.toFixed(2) : '—'}</div>
+    <div class="detail-row"><strong>Rationale:</strong> ${esc(z.placement_rationale || '—')}</div>
+    <div class="detail-row"><strong>Categories:</strong> ${esc((z.categories || []).join(', ') || '—')}</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin:16px 0 8px">Serve Tag</div>
+    <div class="code-block">${esc(tag)}</div>
+  `);
+}
+
+// ── Impressions ──────────────────────────────────────────────────────────────
+async function loadImpressions() {
+  const data = await fetch(BASE + '/admin/api/impressions').then(r => r.json());
+
+  var clicks = data.filter(i => i.clicked).length;
+  var spend = data.reduce((a, i) => a + i.cpm_paid / 1000, 0);
+  document.getElementById('impression-stats').innerHTML = [
+    stat('Showing', data.length, ''),
+    stat('Clicked', clicks, 'purple'),
+    stat('CTR', data.length ? (100 * clicks / data.length).toFixed(2) + '%' : '0%', 'green'),
+    stat('Spend (shown)', '$' + spend.toFixed(4), 'green'),
+  ].join('');
+
+  var rows = data.map(i => `
+    <tr>
+      <td style="font-size:12px;color:#64748b">${fmtDate(i.created_at)}</td>
+      <td style="color:#f1f5f9">${esc(i.brand_name || '—')}</td>
+      <td style="color:#94a3b8">${esc(i.zone_name || '—')}</td>
+      <td>$${i.cpm_paid.toFixed(2)}</td>
+      <td>${i.clicked
+        ? '<span class="badge badge-green">✓ clicked</span><br><span style="font-size:10px;color:#475569">' + fmtDate(i.clicked_at) + '</span>'
+        : '<span class="badge badge-gray">—</span>'}</td>
+      <td style="font-size:11px;color:#475569;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.page_url || '—')}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('impressions-body').innerHTML = rows || '<tr><td colspan="6" class="empty">No impressions yet.</td></tr>';
+}
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+function loadAll() {
+  loadCampaigns();
+  loadAdvertisers();
+  loadZones();
+  loadImpressions();
+}
+
+loadAll();
+</script>
+</body>
+</html>

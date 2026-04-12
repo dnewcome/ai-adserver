@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from api.admin import router as admin_router
 from api.auction import router as auction_router
 from api.auth import router as auth_router
 from api.campaigns import router as campaigns_router
@@ -26,6 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(campaigns_router)
 app.include_router(publishers_router)
@@ -34,6 +37,11 @@ app.include_router(serve_router)
 app.include_router(jobs_router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/admin", include_in_schema=False)
+async def admin_ui():
+    return FileResponse("static/admin.html")
 
 
 @app.get("/health")

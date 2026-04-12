@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indie Music Weekly — AI Ad Server Demo</title>
+
+  <!-- Ad server queue — must be before any slot pushes -->
+  <script>window._aias = window._aias || { q: [], push: function(c) { this.q.push(c); } };</script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #fafaf9; color: #1c1917; line-height: 1.6;
+    }
+    header {
+      background: #fff; border-bottom: 1px solid #e7e5e4;
+      padding: 0 24px; display: flex; align-items: center;
+      justify-content: space-between; height: 56px;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .logo { font-size: 18px; font-weight: 700; color: #7c3aed; letter-spacing: -.02em; }
+    nav a { color: #57534e; text-decoration: none; font-size: 14px; margin-left: 20px; }
+    nav a:hover { color: #1c1917; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .layout { display: grid; grid-template-columns: 1fr 280px; gap: 40px; margin-top: 36px; padding-bottom: 80px; }
+    @media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+    .ad-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #a8a29e; margin-bottom: 4px; }
+    .ad-slot { margin: 24px 0; }
+    .article-tag {
+      display: inline-block; background: #f3e8ff; color: #7c3aed;
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px;
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px;
+    }
+    h1 { font-size: 28px; font-weight: 700; line-height: 1.25; margin-bottom: 12px; color: #0c0a09; }
+    .byline { font-size: 13px; color: #78716c; margin-bottom: 24px; }
+    .article-body p { font-size: 16px; color: #292524; margin-bottom: 18px; }
+    .article-body h2 { font-size: 20px; font-weight: 600; margin: 28px 0 12px; }
+    .sidebar-section { margin-bottom: 32px; }
+    .sidebar-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #a8a29e; margin-bottom: 12px; }
+    .related-item { padding: 10px 0; border-bottom: 1px solid #e7e5e4; font-size: 14px; color: #44403c; }
+    #debug {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #0c0a09; color: #86efac;
+      font-family: monospace; font-size: 12px; padding: 10px 20px;
+      border-top: 2px solid #7c3aed; max-height: 130px; overflow-y: auto;
+      display: none;
+    }
+    #debug-toggle {
+      position: fixed; bottom: 0; right: 20px; background: #7c3aed; color: #fff;
+      border: none; cursor: pointer; font-size: 12px; padding: 4px 12px;
+      border-radius: 4px 4px 0 0; font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">♪ Indie Music Weekly</div>
+  <nav>
+    <a href="#">Features</a><a href="#">Reviews</a>
+    <a href="#">Interviews</a><a href="#">Charts</a>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- BANNER SLOT -->
+  <div class="ad-slot">
+    <div class="ad-label">Advertisement</div>
+    <div id="aias-2bf98d13-a555-44c9-942c-77afb3c45902"></div>
+  </div>
+
+  <div class="layout">
+    <main>
+      <div class="article-tag">Creator Economy</div>
+      <h1>Why Independent Musicians Are Abandoning Streaming Platforms</h1>
+      <div class="byline">By Jordan Mercer &nbsp;·&nbsp; April 11, 2026 &nbsp;·&nbsp; 6 min read</div>
+
+      <div class="article-body">
+        <p>For years, independent musicians accepted the bargain: post your music on the big streaming platforms, accept fractions of a cent per stream, and hope the algorithm finds you a fanbase. But a quiet revolt is underway, and its leaders are not the artists you'd expect.</p>
+        <p>Across genres, independent creators are building direct relationships with fans — and discovering that 500 paying supporters can outperform 50,000 passive listeners on a streaming platform.</p>
+
+        <!-- IN-CONTENT NATIVE SLOT -->
+        <div class="ad-slot">
+          <div class="ad-label">Sponsored</div>
+          <div id="aias-f1c6e91a-0fa6-4eaf-bf2e-153cc506eadb"></div>
+        </div>
+
+        <h2>The Math Has Changed</h2>
+        <p>When Spotify pays between $0.003 and $0.005 per stream, an artist needs roughly 200,000 streams to earn $1,000. Compare that to a creator with 500 fans paying $5 a month — that's $2,500 recurring, every month, with no algorithm involved.</p>
+        <p>"I made more in my first week of direct fan subscriptions than I did in 18 months on streaming," said one ambient producer who asked to remain anonymous. "The math is embarrassingly obvious once you see it."</p>
+        <h2>What Creators Actually Want</h2>
+        <p>Platform transparency is the recurring theme. Artists want to know who is listening, why they found the music, and how to reach more people like them. Algorithmic black boxes offer none of that. The new platforms do.</p>
+        <p>The shift isn't just economic — it's philosophical. Independent musicians are increasingly treating their careers like small businesses, with sustainable revenue models built on genuine relationships rather than viral moments.</p>
+      </div>
+    </main>
+
+    <aside>
+      <div class="sidebar-section">
+        <div class="sidebar-title">Related Articles</div>
+        <div class="related-item">The 1,000 True Fans Theory Revisited</div>
+        <div class="related-item">Patreon vs. Direct — Which Works in 2026?</div>
+        <div class="related-item">How Visual Artists Are Monetizing Online</div>
+        <div class="related-item">Algorithmic Discovery Is Dead. Now What?</div>
+      </div>
+
+      <!-- SIDEBAR NATIVE SLOT (second zone impression) -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Promoted</div>
+        <div id="aias-f1c6e91a-0fa6-4eaf-bf2e-153cc506eadb-sb"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Load serve.js once, push all zones into the queue -->
+<script src="http://localhost:8000/serve/serve.js" async></script>
+<script>
+  var BASE = 'http://localhost:8000';
+  window._aias.push({ zone: '2bf98d13-a555-44c9-942c-77afb3c45902', type: 'banner', base: BASE });
+  window._aias.push({ zone: 'f1c6e91a-0fa6-4eaf-bf2e-153cc506eadb', type: 'native', base: BASE });
+  // Sidebar: different container ID, same zone
+  window._aias.push({ zone: 'f1c6e91a-0fa6-4eaf-bf2e-153cc506eadb', type: 'native', base: BASE, containerId: 'aias-f1c6e91a-0fa6-4eaf-bf2e-153cc506eadb-sb' });
+</script>
+
+<button id="debug-toggle" onclick="var d=document.getElementById('debug'); d.style.display=d.style.display==='none'?'block':'none'">[ debug ]</button>
+<div id="debug"></div>
+
+<script>
+  // Intercept XHR to show auction results in debug panel
+  var _open = XMLHttpRequest.prototype.open;
+  var _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function(m, url) { this._url = url; _open.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function() {
+    var xhr = this;
+    this.addEventListener('load', function() {
+      if (!xhr._url || !xhr._url.includes('/serve/')) return;
+      var log = document.getElementById('debug');
+      var entry = document.createElement('div');
+      var ts = new Date().toISOString().slice(11,23);
+      if (xhr.status === 200) {
+        try {
+          var d = JSON.parse(xhr.responseText);
+          entry.textContent = ts + ' ✓ auction won — ' + d.brand_name + ' | "' + d.creative.headline_short + '" | $' + d.cpm_paid + ' CPM | impression: ' + d.impression_id.slice(0,8) + '…';
+          entry.style.color = '#86efac';
+        } catch(e) { entry.textContent = ts + ' parse error'; }
+      } else {
+        entry.textContent = ts + ' · no fill (' + xhr.status + ')';
+        entry.style.color = '#fca5a5';
+      }
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+      log.style.display = 'block';
+    });
+    _send.apply(this, arguments);
+  };
+</script>
+
+</body>
+</html>
