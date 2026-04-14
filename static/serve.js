@@ -8,6 +8,23 @@
   // This script processes whatever is already in the queue, then installs
   // a live push() so late-arriving calls are handled immediately.
 
+  // ─── Visitor ID cookie (#13 frequency capping) ──────────────────────────
+  function _getOrCreateVisitorId() {
+    var name = '_aias_vid=';
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var c = cookies[i].trim();
+      if (c.indexOf(name) === 0) return c.substring(name.length);
+    }
+    // Generate a random visitor ID and persist for 365 days
+    var vid = 'v' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    var expires = new Date(Date.now() + 365 * 86400 * 1000).toUTCString();
+    document.cookie = '_aias_vid=' + vid + '; expires=' + expires + '; path=/; SameSite=Lax';
+    return vid;
+  }
+
+  var VISITOR_ID = _getOrCreateVisitorId();
+
   function processSlot(cfg) {
     var zoneId   = cfg.zone;
     var zoneType = cfg.type || 'banner';
@@ -17,7 +34,7 @@
     if (!container) return;
 
     var pageUrl  = encodeURIComponent(window.location.href);
-    var endpoint = baseUrl + '/serve/' + zoneId + '?url=' + pageUrl;
+    var endpoint = baseUrl + '/serve/' + zoneId + '?url=' + pageUrl + '&visitor_id=' + encodeURIComponent(VISITOR_ID);
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', endpoint, true);

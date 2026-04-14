@@ -13,6 +13,7 @@ import models.advertiser   # noqa: F401 — ensure models are registered
 import models.publisher    # noqa: F401
 import models.campaign     # noqa: F401
 import models.impression   # noqa: F401
+import models.conversion   # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

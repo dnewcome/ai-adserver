@@ -1,0 +1,64 @@
+# Bot / crawler User-Agent substrings (lowercase)
+# Each line is matched as a substring against the incoming UA.
+# Lines starting with # are comments.
+
+# Search engine crawlers
+googlebot
+bingbot
+slurp
+duckduckbot
+baiduspider
+yandexbot
+sogou
+exabot
+facebot
+ia_archiver
+
+# Generic crawlers / scrapers
+crawler
+spider
+scraper
+bot/
+robot
+wget
+curl
+python-requests
+python-urllib
+go-http-client
+java/
+apache-httpclient
+okhttp
+libwww-perl
+lwp-trivial
+petalbot
+
+# SEO / monitoring tools
+ahrefsbot
+semrushbot
+dotbot
+mj12bot
+rogerbot
+screaming frog
+linkcheck
+checklink
+site-auditor
+seokicks
+seobilitybot
+
+# Uptime / health checkers
+uptimerobot
+pingdom
+statuscake
+site24x7
+newrelic synthetics
+gtmetrix
+
+# AI training crawlers
+gptbot
+ccbot
+claudebot
+anthropic-ai
+cohere-ai
+common crawl
+diffbot
+bytespider

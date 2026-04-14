@@ -17,6 +17,7 @@ router = APIRouter(prefix="/auction", tags=["auction"])
 class BidRequest(BaseModel):
     zone_id: str
     page_url: str | None = None
+    visitor_id: str | None = None
 
 
 class BidResponse(BaseModel):
@@ -46,6 +47,7 @@ async def bid(
             page_url=req.page_url,
             user_agent=user_agent,
             db=db,
+            visitor_id=req.visitor_id,
         )
     except NoFillError as exc:
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail=str(exc))

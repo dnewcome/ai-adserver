@@ -11,6 +11,7 @@ from api.campaigns import router as campaigns_router
 from api.jobs import router as jobs_router
 from api.publishers import router as publishers_router
 from api.serve import router as serve_router
+from api.tracking import router as tracking_router
 
 app = FastAPI(
     title="AI Ad Server",
@@ -37,6 +38,8 @@ app = FastAPI(
         {"name": "auction",   "description": "RTB auction engine — bid and click-tracking endpoints."},
         {"name": "serve",     "description": "Publisher tag delivery (serve.js and per-zone ad endpoint)."},
         {"name": "jobs",      "description": "Poll background task status."},
+        {"name": "analytics", "description": "Per-campaign and per-zone performance stats."},
+        {"name": "tracking",  "description": "Conversion pixel and server-side postback."},
         {"name": "admin",     "description": "No-auth admin API for internal use."},
     ],
 )
@@ -56,6 +59,7 @@ app.include_router(publishers_router)
 app.include_router(auction_router)
 app.include_router(serve_router)
 app.include_router(jobs_router)
+app.include_router(tracking_router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

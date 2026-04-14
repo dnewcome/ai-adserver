@@ -43,6 +43,7 @@ def create_campaign_task(
     product_url: str,
     daily_budget_usd: float | None = None,
     total_budget_usd: float | None = None,
+    frequency_cap: int | None = None,
 ) -> dict:
     """
     Full pipeline: URL → scrape → brand analysis → creatives → save Campaign row.
@@ -56,6 +57,7 @@ def create_campaign_task(
                 product_url=product_url,
                 daily_budget_usd=daily_budget_usd,
                 total_budget_usd=total_budget_usd,
+                frequency_cap=frequency_cap,
             )
         )
     except Exception as exc:
@@ -68,6 +70,7 @@ async def _create_campaign_async(
     product_url: str,
     daily_budget_usd: float | None,
     total_budget_usd: float | None,
+    frequency_cap: int | None = None,
 ) -> dict:
     import models  # noqa: F401 — registers all mappers before any query
     from ai.campaign_creator import create_campaign_from_url
@@ -90,6 +93,7 @@ async def _create_campaign_async(
             ad_creatives=result.get("ad_creatives", []),
             daily_budget_usd=daily_budget_usd,
             total_budget_usd=total_budget_usd,
+            frequency_cap=frequency_cap,
             status=CampaignStatus.ACTIVE,
             is_listed=True,
             images_status="pending" if result.get("ad_creatives") else None,

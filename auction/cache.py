@@ -75,3 +75,54 @@ async def invalidate() -> None:
         keys = await r.keys("auction:*")
         if keys:
             await r.delete(*keys)
+
+
+# ---------------------------------------------------------------------------
+# Frequency capping — per-visitor, per-campaign, daily TTL
+# ---------------------------------------------------------------------------
+
+def _freq_key(visitor_id: str, campaign_id: str) -> str:
+    return f"freq:{visitor_id}:{campaign_id}"
+
+
+async def get_freq_count(visitor_id: str, campaign_id: str) -> int:
+    async with _redis() as r:
+        val = await r.get(_freq_key(visitor_id, campaign_id))
+        return int(val) if val else 0
+
+
+async def increment_freq(visitor_id: str, campaign_id: str) -> None:
+    async with _redis() as r:
+        key = _freq_key(visitor_id, campaign_id)
+        pipe = r.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, 86400)
+        await pipe.execute()
+
+
+# ---------------------------------------------------------------------------
+# Budget pacing — per-campaign daily spend tracker
+# ---------------------------------------------------------------------------
+
+def _pace_key(campaign_id: str) -> str:
+    from datetime import date
+    return f"pace:{campaign_id}:{date.today().isoformat()}"
+
+
+async def get_today_spend(campaign_id: str) -> float:
+    async with _redis() as r:
+        val = await r.get(_pace_key(campaign_id))
+        return float(val) if val else 0.0
+
+
+async def increment_today_spend(campaign_id: str, amount_usd: float) -> None:
+    async with _redis() as r:
+        key = _pace_key(campaign_id)
+        pipe = r.pipeline()
+        pipe.incrbyfloat(key, amount_usd)
+        # TTL: expires at end of day (seconds until midnight UTC)
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        seconds_until_midnight = 86400 - (now.hour * 3600 + now.minute * 60 + now.second)
+        pipe.expire(key, seconds_until_midnight + 60)  # +60s buffer
+        await pipe.execute()

@@ -42,6 +42,7 @@ class Campaign(Base):
     bid_floor_cpm: Mapped[float | None] = mapped_column(Float)       # suggested minimum CPM in USD
     daily_budget_usd: Mapped[float | None] = mapped_column(Float)
     total_budget_usd: Mapped[float | None] = mapped_column(Float)
+    frequency_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)  # max impressions/visitor/day
 
     # Image generation status: None | "pending" | "done" | "failed"
     images_status: Mapped[str | None] = mapped_column(String(20))
