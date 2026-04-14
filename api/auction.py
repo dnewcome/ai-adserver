@@ -88,4 +88,4 @@ async def click(
     )
     campaign = camp_result.scalar_one_or_none()
     destination = campaign.product_url if campaign else "/"
-    return RedirectResponse(url=destination)
+    return RedirectResponse(url=destination, status_code=302)
